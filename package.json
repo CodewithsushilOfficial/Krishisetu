@@ -1,0 +1,21 @@
+{
+  "name": "krishisetu",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n \"BACKEND,FRONTEND,AI\" -c \"blue,green,magenta\" \"pnpm --filter ./backend dev\" \"pnpm --filter ./frontend dev\" \"pnpm run dev:ai\"",
+    "dev:frontend": "pnpm --filter ./frontend dev",
+    "dev:backend": "pnpm --filter ./backend dev",
+    "dev:ai": "python -m uvicorn app.main:app --app-dir ai-services --reload --port 8000",
+    "build": "pnpm --filter ./backend build && pnpm --filter ./frontend build",
+    "lint": "pnpm --filter ./backend lint && pnpm --filter ./frontend lint",
+    "seed:demo": "pnpm --filter ./backend seed:demo",
+    "format": "prettier --write \"{frontend,backend,ai-services,docs}/**/*.{js,jsx,json,md,yml,yaml}\" \"*.{js,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"{frontend,backend,ai-services,docs}/**/*.{js,jsx,json,md,yml,yaml}\" \"*.{js,json,md,yml,yaml}\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "prettier": "^3.5.1"
+  }
+}

@@ -1,0 +1,66 @@
+# Dependencies
+node_modules/
+*/node_modules/
+.pnpm-store/
+
+# Documentation & Mock Data
+Docs/
+docs/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+coverage/
+*.tsbuildinfo
+
+# Python & AI Services
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS and Editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Test Scripts & Test Suites
+backend/scripts/test-*
+backend/scripts/verify-*
+scripts/test-*
+*.test.*
+*.spec.*
+test/
+tests/
+__tests__/
+
+# Graphify Memory & Cache
+.graphify_cache/
+graphify-out/
+.agents

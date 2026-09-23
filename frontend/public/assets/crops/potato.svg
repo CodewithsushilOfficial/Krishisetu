@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <defs>
+    <radialGradient id="potatoGrad" cx="40%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#dfb173"/>
+      <stop offset="45%" stop-color="#c48f48"/>
+      <stop offset="85%" stop-color="#996a28"/>
+      <stop offset="100%" stop-color="#704815"/>
+    </radialGradient>
+    <radialGradient id="potatoHighlight" cx="35%" cy="30%" r="25%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="potatoShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="#543610" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <!-- Transparent background for crisp table inline rendering -->
+  <g filter="url(#potatoShadow)" transform="translate(0, 15)">
+    <!-- Natural organic potato contour -->
+    <path d="M 120 180 C 100 230, 130 300, 200 310 C 270 320, 310 270, 310 210 C 310 150, 260 120, 190 125 C 140 130, 130 150, 120 180 Z" fill="url(#potatoGrad)"/>
+    <!-- Highlight -->
+    <ellipse cx="180" cy="180" rx="55" ry="35" fill="url(#potatoHighlight)" transform="rotate(-15 180 180)"/>
+    <!-- Natural potato eyes / texture dots -->
+    <ellipse cx="150" cy="160" rx="6" ry="3" fill="#6d4715" opacity="0.6"/>
+    <ellipse cx="230" cy="165" rx="7" ry="4" fill="#6d4715" opacity="0.65"/>
+    <ellipse cx="180" cy="240" rx="8" ry="4" fill="#6d4715" opacity="0.6"/>
+    <ellipse cx="260" cy="230" rx="6" ry="3" fill="#6d4715" opacity="0.55"/>
+    <ellipse cx="210" cy="275" rx="5" ry="3" fill="#6d4715" opacity="0.5"/>
+    <ellipse cx="140" cy="220" rx="5" ry="3" fill="#6d4715" opacity="0.45"/>
+  </g>
+</svg>

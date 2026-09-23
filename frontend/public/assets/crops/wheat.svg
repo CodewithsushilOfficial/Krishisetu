@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <defs>
+    <radialGradient id="wheatGrad" cx="40%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="40%" stop-color="#eab308"/>
+      <stop offset="85%" stop-color="#ca8a04"/>
+      <stop offset="100%" stop-color="#854d0e"/>
+    </radialGradient>
+    <filter id="wheatShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#854d0e" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <!-- Transparent background for crisp table inline rendering -->
+  <g filter="url(#wheatShadow)" transform="translate(0, 10)">
+    <!-- Central Stalk -->
+    <path d="M 200 330 Q 198 220 200 80" stroke="#ca8a04" stroke-width="8" stroke-linecap="round" fill="none"/>
+    <!-- Wheat Ears / Grains Left & Right -->
+    <path d="M 195 100 C 160 85 155 120 195 115 Z" fill="url(#wheatGrad)"/>
+    <path d="M 205 100 C 240 85 245 120 205 115 Z" fill="url(#wheatGrad)"/>
+    
+    <path d="M 195 130 C 150 115 145 150 195 145 Z" fill="url(#wheatGrad)"/>
+    <path d="M 205 130 C 250 115 255 150 205 145 Z" fill="url(#wheatGrad)"/>
+
+    <path d="M 195 160 C 145 145 140 180 195 175 Z" fill="url(#wheatGrad)"/>
+    <path d="M 205 160 C 255 145 260 180 205 175 Z" fill="url(#wheatGrad)"/>
+
+    <path d="M 195 190 C 145 175 140 210 195 205 Z" fill="url(#wheatGrad)"/>
+    <path d="M 205 190 C 255 175 260 210 205 205 Z" fill="url(#wheatGrad)"/>
+
+    <path d="M 195 220 C 150 205 145 240 195 235 Z" fill="url(#wheatGrad)"/>
+    <path d="M 205 220 C 250 205 255 240 205 235 Z" fill="url(#wheatGrad)"/>
+
+    <path d="M 195 250 C 155 235 150 270 195 265 Z" fill="url(#wheatGrad)"/>
+    <path d="M 205 250 C 245 235 250 270 205 265 Z" fill="url(#wheatGrad)"/>
+
+    <!-- Top Awns / Bristles -->
+    <path d="M 200 85 Q 185 45 170 30" stroke="#ca8a04" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <path d="M 200 80 Q 200 40 200 25" stroke="#ca8a04" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+    <path d="M 200 85 Q 215 45 230 30" stroke="#ca8a04" stroke-width="3" stroke-linecap="round" fill="none"/>
+  </g>
+</svg>

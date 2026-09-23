@@ -1,0 +1,1181 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// -----------------------------------------------------------------------------
+// Core System & Diagnostics
+// -----------------------------------------------------------------------------
+model SystemHealthCheck {
+  id        String   @id @default(uuid())
+  service   String   @default("krishisetu-backend")
+  checkedAt DateTime @default(now()) @map("checked_at")
+
+  @@map("system_health_checks")
+}
+
+// -----------------------------------------------------------------------------
+// Authentication & Identity
+// -----------------------------------------------------------------------------
+
+enum Role {
+  FARMER
+  FPO
+  LOGISTICS
+  BULK_BUYER
+  CONSUMER
+  ADMIN
+  CONTROL_ADMIN
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum FpoVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum OtpPurpose {
+  REGISTRATION
+  PASSWORD_RESET
+  LOGIN
+}
+
+model User {
+  id            String     @id @default(uuid())
+  email         String     @unique
+  phone         String     @unique
+  fullName      String     @map("full_name")
+  passwordHash  String     @map("password_hash")
+  role          Role
+  status        UserStatus @default(PENDING)
+  emailVerified Boolean    @default(false) @map("email_verified")
+  phoneVerified Boolean    @default(false) @map("phone_verified")
+  lastLoginAt   DateTime?  @map("last_login_at")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  // 1-to-1 Role Profiles
+  farmerProfile    FarmerProfile?
+  fpoProfile       FpoProfile?
+  logisticsProfile LogisticsProfile?
+  bulkBuyerProfile BulkBuyerProfile?
+  consumerProfile  ConsumerProfile?
+
+  // Refresh tokens & Sessions
+  refreshTokens RefreshToken[]
+  sessions      Session[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+model Session {
+  id               String    @id @default(uuid())
+  userId           String    @map("user_id")
+  refreshTokenHash String    @unique @map("refresh_token_hash")
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  lastUsedAt       DateTime? @map("last_used_at")
+  ipAddress        String?   @map("ip_address")
+  userAgent        String?   @map("user_agent")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshTokenHash])
+  @@index([expiresAt])
+  @@index([revokedAt])
+  @@map("sessions")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  userId    String    @map("user_id")
+  expiresAt DateTime  @map("expires_at")
+  revoked   Boolean   @default(false)
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model OtpVerification {
+  id         String     @id @default(uuid())
+  identifier String
+  purpose    OtpPurpose
+  otpHash    String?    @map("otp_hash")
+  attempts   Int        @default(0)
+  expiresAt  DateTime   @map("expires_at")
+  verifiedAt DateTime?  @map("verified_at")
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  @@index([identifier, purpose])
+  @@map("otp_verifications")
+}
+
+// -----------------------------------------------------------------------------
+// Role Profiles
+// -----------------------------------------------------------------------------
+
+model FarmerProfile {
+  id           String   @id @default(uuid())
+  userId       String   @unique @map("user_id")
+  profilePhoto String?  @map("profile_photo")
+  dateOfBirth  String?  @map("date_of_birth")
+  gender       String?
+
+  // Address
+  addressLine String?  @map("address_line")
+  village     String
+  postOffice  String?  @map("post_office")
+  district    String
+  state       String
+  pincode     String
+
+  // Farming Information
+  farmerType     String   @map("farmer_type")
+  farmName       String?  @map("farm_name")
+  totalLandArea  Decimal  @default(0) @map("total_land_area") @db.Decimal(10, 2)
+  landUnit       String   @default("ACRE") @map("land_unit")
+  farmingType    String   @default("Conventional") @map("farming_type")
+  primaryCrops   String[] @default([]) @map("primary_crops")
+  secondaryCrops String[] @default([]) @map("secondary_crops")
+  irrigationType String?  @map("irrigation_type")
+  kycStatus      String   @default("VERIFIED") @map("kyc_status")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relations
+  farms             Farm[]
+  fpoMemberships    FpoMembership[]
+  produce           Produce[]
+  inventoryLots     InventoryLot[]
+  aiRecommendations AIRecommendation[]
+
+  @@map("farmer_profiles")
+}
+
+model FpoProfile {
+  id                 String                @id @default(uuid())
+  userId             String                @unique @map("user_id")
+  fpoName            String                @map("fpo_name")
+  fpoType            String                @default("Farmer Producer Organization") @map("fpo_type")
+  registrationNumber String                @map("registration_number")
+  establishedYear    Int?                  @map("established_year")
+  officialEmail      String?               @map("official_email")
+  officialPhone      String?               @map("official_phone")
+  website            String?
+  logo               String?
+
+  // Authorized Representative
+  representativeName   String? @map("representative_name")
+  designation          String?
+  representativeMobile String? @map("representative_mobile")
+  representativeEmail  String? @map("representative_email")
+
+  // Registered Address
+  addressLine     String? @map("address_line")
+  villageTownCity String? @map("village_town_city")
+  district        String
+  state           String
+  pincode         String
+
+  // Operational Info
+  memberCount         Int?                  @map("member_count")
+  primaryCrops        String[]              @default([]) @map("primary_crops")
+  operatingDistricts  String[]              @default([]) @map("operating_districts")
+  storageAvailable    Boolean               @default(false) @map("storage_available")
+  aggregationCapacity Decimal?              @map("aggregation_capacity") @db.Decimal(10, 2)
+  verificationStatus  FpoVerificationStatus @default(PENDING) @map("verification_status")
+
+  // Additional Profile Details
+  shortName           String?               @map("short_name")
+  tagline             String?
+  description         String?               @db.Text
+  panNumber           String?               @map("pan_number")
+  gstNumber           String?               @map("gst_number")
+  bankName            String?               @map("bank_name")
+  bankAccountNumber   String?               @map("bank_account_number")
+  bankIfscCode        String?               @map("bank_ifsc_code")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relations
+  memberships           FpoMembership[]
+  staffMembers          FpoStaff[]
+  collectionCenters     CollectionCenter[]
+  produce               Produce[]
+  inventoryLots         InventoryLot[]
+  inventoryTransactions InventoryTransaction[]
+  orders                Order[]
+  payments              Payment[]
+  shipments             Shipment[]
+  settlements           Settlement[]
+  notifications         Notification[]
+  messages              Message[]
+  auditLogs             AuditLog[]
+
+  @@map("fpo_profiles")
+}
+
+model LogisticsProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique @map("user_id")
+  partnerCode   String?  @unique @map("partner_code")
+  businessName  String   @map("business_name")
+  businessType  String   @default("Logistics Provider") @map("business_type")
+  contactPerson String   @map("contact_person")
+  contactName   String?  @map("contact_name")
+  email         String?
+  mobile        String?
+  phone         String?
+
+  // Address
+  addressLine String? @map("address_line")
+  city        String?
+  district    String
+  state       String
+  pincode     String?
+
+  // Transport Details
+  vehicleTypes       String[] @default([]) @map("vehicle_types")
+  vehicleCount       Int      @default(1) @map("vehicle_count")
+  serviceAreas       String[] @default([]) @map("service_areas")
+  serviceArea        String?  @map("service_area")
+  minCapacityKg      Decimal? @map("min_capacity_kg") @db.Decimal(10, 2)
+  maxCapacityKg      Decimal? @map("max_capacity_kg") @db.Decimal(10, 2)
+  verificationStatus String   @default("VERIFIED") @map("verification_status")
+  availabilityStatus String   @default("AVAILABLE") @map("availability_status") // AVAILABLE, BUSY, OFFLINE, ON_TRIP
+  rating             Decimal? @default(4.50) @db.Decimal(3, 2)
+  totalTrips         Int      @default(0) @map("total_trips")
+  completedTrips     Int      @default(0) @map("completed_trips")
+  cancelledTrips     Int      @default(0) @map("cancelled_trips")
+  totalEarnings      Decimal  @default(0) @map("total_earnings") @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relations
+  vehicles           Vehicle[]
+  shipments          Shipment[]
+  trips              Trip[]
+  fuelExpenses       FuelExpense[]
+  maintenanceRecords MaintenanceRecord[]
+  earnings           LogisticsEarning[]
+  ratings            LogisticsRating[]
+  notifications      Notification[]
+  messages           Message[]
+
+  @@map("logistics_profiles")
+}
+
+model BulkBuyerProfile {
+  id            String  @id @default(uuid())
+  userId        String  @unique @map("user_id")
+  businessName  String  @map("business_name")
+  businessType  String  @default("Wholesaler") @map("business_type")
+  gstNumber     String? @map("gst_number")
+  businessEmail String? @map("business_email")
+  businessPhone String? @map("business_phone")
+  website       String?
+
+  // Contact Person
+  contactPersonName String? @map("contact_person_name")
+  designation       String?
+  contactMobile     String? @map("contact_mobile")
+  contactEmail      String? @map("contact_email")
+
+  // Location
+  addressLine String? @map("address_line")
+  city        String?
+  district    String
+  state       String
+  pincode     String
+
+  // Procurement Info
+  primaryCrops         String[] @default([]) @map("primary_crops")
+  preferredCrops       String[] @default([]) @map("preferred_crops")
+  expectedVolume       Decimal? @map("expected_volume") @db.Decimal(10, 2)
+  volumeUnit           String?  @default("MT") @map("volume_unit")
+  procurementFrequency String?  @map("procurement_frequency")
+  preferredArea        String?  @map("preferred_area")
+  verificationStatus   String   @default("VERIFIED") @map("verification_status")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relations
+  demands Demand[]
+  orders  Order[]
+
+  @@map("bulk_buyer_profiles")
+}
+
+model ConsumerProfile {
+  id                   String  @id @default(uuid())
+  userId               String  @unique @map("user_id")
+  fullName             String? @map("full_name")
+  houseFlat            String? @map("house_flat")
+  streetArea           String? @map("street_area")
+  addressLine          String? @map("address_line")
+  city                 String?
+  district             String
+  state                String
+  pincode              String
+  profilePhoto         String? @map("profile_photo")
+  deliveryInstructions String? @map("delivery_instructions")
+  verificationStatus   String  @default("VERIFIED") @map("verification_status")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("consumer_profiles")
+}
+
+// -----------------------------------------------------------------------------
+// Agricultural Assets & Entities
+// -----------------------------------------------------------------------------
+
+model Farm {
+  id             String   @id
+  farmerId       String   @map("farmer_id")
+  farmName       String   @map("farm_name")
+  areaAcres      Decimal  @map("area_acres") @db.Decimal(10, 2)
+  soilType       String?  @map("soil_type")
+  irrigationType String?  @map("irrigation_type")
+  latitude       Decimal? @db.Decimal(10, 6)
+  longitude      Decimal? @db.Decimal(10, 6)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  farmer  FarmerProfile @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  produce Produce[]
+
+  @@map("farms")
+}
+
+model FpoMembership {
+  id         String   @id
+  fpoId      String   @map("fpo_id")
+  farmerId   String   @map("farmer_id")
+  status     String   @default("ACTIVE")
+  joinedDate DateTime @default(now()) @map("joined_date")
+
+  fpo    FpoProfile    @relation(fields: [fpoId], references: [id], onDelete: Cascade)
+  farmer FarmerProfile @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+
+  @@unique([fpoId, farmerId])
+  @@map("fpo_memberships")
+}
+
+model Vehicle {
+  id                 String    @id @default(uuid())
+  logisticsId        String    @map("logistics_id")
+  vehicleNumber      String    @unique @map("vehicle_number")
+  vehicleType        String    @map("vehicle_type")
+  brand              String?
+  model              String?
+  capacityKg         Decimal   @map("capacity_kg") @db.Decimal(10, 2)
+  capacityTon        Decimal?  @map("capacity_ton") @db.Decimal(10, 2)
+  fuelType           String?   @default("Diesel") @map("fuel_type") // Diesel, CNG, Electric, Petrol
+  gpsEnabled         Boolean   @default(true) @map("gps_enabled")
+  gpsDeviceId        String?   @map("gps_device_id")
+  status             String    @default("ACTIVE") // ACTIVE, INACTIVE, IN_MAINTENANCE, AVAILABLE, ON_TRIP
+  insuranceExpiry    DateTime? @map("insurance_expiry")
+  fitnessExpiry      DateTime? @map("fitness_expiry")
+  permitExpiry       DateTime? @map("permit_expiry")
+  pollutionExpiry    DateTime? @map("pollution_expiry")
+  lastServiceDate    DateTime? @map("last_service_date")
+  nextServiceDate    DateTime? @map("next_service_date")
+  refrigerated       Boolean   @default(false)
+  imageUrl           String?   @map("image_url")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  logistics          LogisticsProfile    @relation(fields: [logisticsId], references: [id], onDelete: Cascade)
+  documents          VehicleDocument[]
+  shipments          Shipment[]
+  trips              Trip[]
+  fuelExpenses       FuelExpense[]
+  maintenanceRecords MaintenanceRecord[]
+  locationUpdates    LocationUpdate[]
+
+  @@index([logisticsId])
+  @@index([status])
+  @@map("vehicles")
+}
+
+model VehicleDocument {
+  id             String    @id @default(uuid())
+  vehicleId      String    @map("vehicle_id")
+  documentType   String    @map("document_type") // RC, INSURANCE, FITNESS, PERMIT, POLLUTION
+  documentNumber String?   @map("document_number")
+  fileUrl        String    @map("file_url")
+  expiryDate     DateTime? @map("expiry_date")
+  verified       Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+  @@map("vehicle_documents")
+}
+
+model Crop {
+  id        String   @id
+  cropCode  String   @unique @map("crop_code")
+  cropName  String   @map("crop_name")
+  category  String
+  unit      String   @default("KG")
+  season    String
+  active    Boolean  @default(true)
+  imageUrl  String?  @map("image_url")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  produce           Produce[]
+  inventoryLots     InventoryLot[]
+  marketPrices      MarketPrice[]
+  demands           Demand[]
+  demandPools       DemandPool[]
+  orders            Order[]
+  aiForecasts       AIForecast[]
+  aiSupplyGaps      AISupplyGap[]
+  aiRecommendations AIRecommendation[]
+
+  @@map("crops")
+}
+
+model Produce {
+  id                 String   @id
+  farmerId           String   @map("farmer_id")
+  farmId             String   @map("farm_id")
+  cropId             String   @map("crop_id")
+  fpoId              String?  @map("fpo_id")
+  collectionCenterId String?  @map("collection_center_id")
+  harvestDate        DateTime @map("harvest_date")
+  grade              String
+  quantityKg         Decimal  @map("quantity_kg") @db.Decimal(12, 2)
+  expectedPricePerKg Decimal  @map("expected_price_per_kg") @db.Decimal(10, 2)
+  qualityScore       Decimal  @map("quality_score") @db.Decimal(4, 2)
+  organic            Boolean  @default(false)
+  moisturePct        Decimal? @map("moisture_pct") @db.Decimal(4, 2)
+  notes              String?
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  farmer            FarmerProfile     @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  farm              Farm              @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  crop              Crop              @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  fpo               FpoProfile?       @relation(fields: [fpoId], references: [id], onDelete: SetNull)
+  collectionCenter  CollectionCenter? @relation(fields: [collectionCenterId], references: [id], onDelete: SetNull)
+  inventoryLots     InventoryLot[]
+
+  @@index([fpoId])
+  @@index([cropId])
+  @@index([collectionCenterId])
+  @@map("produce")
+}
+
+model InventoryLot {
+  id                String    @id
+  lotNumber         String?   @map("lot_number")
+  fpoId             String?   @map("fpo_id")
+  produceId         String    @map("produce_id")
+  farmerId          String    @map("farmer_id")
+  cropId            String    @map("crop_id")
+  availableQtyKg    Decimal   @map("available_qty_kg") @db.Decimal(12, 2)
+  reservedQtyKg     Decimal   @default(0) @map("reserved_qty_kg") @db.Decimal(12, 2)
+  soldQtyKg         Decimal   @default(0) @map("sold_qty_kg") @db.Decimal(12, 2)
+  inTransitQtyKg    Decimal   @default(0) @map("in_transit_qty_kg") @db.Decimal(12, 2)
+  qualityGrade      String?   @map("quality_grade")
+  expiryDate        DateTime? @map("expiry_date")
+  warehouseLocation String    @map("warehouse_location")
+  status            String    @default("AVAILABLE")
+  askingPricePerKg  Decimal   @map("asking_price_per_kg") @db.Decimal(10, 2)
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  produce      Produce                @relation(fields: [produceId], references: [id], onDelete: Cascade)
+  farmer       FarmerProfile          @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  crop         Crop                   @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  fpo          FpoProfile?            @relation(fields: [fpoId], references: [id], onDelete: SetNull)
+  matchings    Matching[]
+  orders       Order[]
+  transactions InventoryTransaction[]
+
+  @@index([fpoId])
+  @@index([cropId])
+  @@index([status])
+  @@map("inventory_lots")
+}
+
+model MarketPrice {
+  id               String    @id @default(uuid())
+  state            String?
+  district         String?
+  market           String
+  commodity        String?
+  variety          String?   @default("Other")
+  grade            String?   @default("FAQ")
+  arrivalDate      DateTime? @map("arrival_date")
+  date             DateTime? @default(now())
+  minPrice         Decimal?  @map("min_price") @db.Decimal(10, 2)
+  maxPrice         Decimal?  @map("max_price") @db.Decimal(10, 2)
+  modalPrice       Decimal?  @map("modal_price") @db.Decimal(10, 2)
+  pricePerKg       Decimal?  @map("price_per_kg") @db.Decimal(10, 2)
+  arrivalsKg       Decimal?  @default(0) @map("arrivals_kg") @db.Decimal(12, 2)
+  unit             String    @default("₹/Quintal")
+  source           String    @default("data.gov.in")
+  sourceResourceId String?   @map("source_resource_id")
+  recordHash       String?   @unique @map("record_hash")
+  fetchedAt        DateTime  @default(now()) @map("fetched_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  cropId String? @map("crop_id")
+  crop   Crop?   @relation(fields: [cropId], references: [id], onDelete: Cascade)
+
+  @@index([commodity])
+  @@index([state])
+  @@index([district])
+  @@index([market])
+  @@index([arrivalDate])
+  @@index([commodity, state, district, arrivalDate])
+  @@index([market, commodity, arrivalDate])
+  @@index([cropId, date])
+  @@map("market_prices")
+}
+
+// -----------------------------------------------------------------------------
+// Commercial & Orders
+// -----------------------------------------------------------------------------
+
+model Demand {
+  id              String   @id
+  buyerId         String   @map("buyer_id")
+  cropId          String   @map("crop_id")
+  requiredQtyKg   Decimal  @map("required_qty_kg") @db.Decimal(12, 2)
+  targetPricePerKg Decimal @map("target_price_per_kg") @db.Decimal(10, 2)
+  deliveryCity    String   @map("delivery_city")
+  requiredBy      DateTime @map("required_by")
+  status          String   @default("OPEN")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  buyer     BulkBuyerProfile @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  crop      Crop             @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  matchings Matching[]
+
+  @@map("demands")
+}
+
+model DemandPool {
+  id          String   @id
+  cropId      String   @map("crop_id")
+  pooledQtyKg Decimal  @map("pooled_qty_kg") @db.Decimal(12, 2)
+  buyersCount Int      @map("buyers_count")
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  crop Crop @relation(fields: [cropId], references: [id], onDelete: Cascade)
+
+  @@map("demand_pools")
+}
+
+model Matching {
+  id                    String   @id
+  demandId              String   @map("demand_id")
+  lotId                 String   @map("lot_id")
+  matchScore            Decimal  @map("match_score") @db.Decimal(4, 2)
+  recommendedPricePerKg Decimal  @map("recommended_price_per_kg") @db.Decimal(10, 2)
+  status                String   @default("RECOMMENDED")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  demand Demand       @relation(fields: [demandId], references: [id], onDelete: Cascade)
+  lot    InventoryLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+
+  @@map("matchings")
+}
+
+model Order {
+  id              String   @id
+  buyerId         String   @map("buyer_id")
+  lotId           String   @map("lot_id")
+  cropId          String   @map("crop_id")
+  fpoId           String?  @map("fpo_id")
+  quantityKg      Decimal  @map("quantity_kg") @db.Decimal(12, 2)
+  unitPrice       Decimal  @map("unit_price") @db.Decimal(10, 2)
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(14, 2)
+  platformFee     Decimal? @default(0) @map("platform_fee") @db.Decimal(12, 2)
+  logisticsFee    Decimal? @default(0) @map("logistics_fee") @db.Decimal(12, 2)
+  netAmount       Decimal? @default(0) @map("net_amount") @db.Decimal(14, 2)
+  deliveryAddress String?  @map("delivery_address")
+  status          String   @default("CONFIRMED")
+  orderDate       DateTime @default(now()) @map("order_date")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  buyer       BulkBuyerProfile @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  lot         InventoryLot     @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  crop        Crop             @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  fpo         FpoProfile?      @relation(fields: [fpoId], references: [id], onDelete: SetNull)
+  payments    Payment[]
+  shipments   Shipment[]
+  settlements Settlement[]
+
+  @@index([fpoId])
+  @@index([buyerId])
+  @@index([status])
+  @@map("orders")
+}
+
+model Payment {
+  id             String   @id
+  orderId        String   @map("order_id")
+  fpoId          String?  @map("fpo_id")
+  amount         Decimal  @db.Decimal(14, 2)
+  method         String
+  status         String   @default("ESCROW_LOCKED")
+  transactionRef String?  @map("transaction_ref")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  order Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fpo   FpoProfile? @relation(fields: [fpoId], references: [id], onDelete: SetNull)
+
+  @@index([fpoId])
+  @@index([orderId])
+  @@map("payments")
+}
+
+// -----------------------------------------------------------------------------
+// Logistics & Telemetry
+// -----------------------------------------------------------------------------
+
+model Shipment {
+  id                      String   @id @default(uuid())
+  orderId                 String?  @map("order_id")
+  logisticsId             String?  @map("logistics_id")
+  vehicleId               String?  @map("vehicle_id")
+  fpoId                   String?  @map("fpo_id")
+  loadId                  String?  @unique @map("load_id")
+  product                 String?
+  cropName                String?  @map("crop_name")
+  quantityKg              Decimal? @map("quantity_kg") @db.Decimal(12, 2)
+  unit                    String?  @default("Ton")
+  pickupDate              DateTime? @map("pickup_date")
+  deliveryDeadline        DateTime? @map("delivery_deadline")
+  estimatedEarnings       Decimal? @map("estimated_earnings") @db.Decimal(12, 2)
+  requiredVehicleCapacity Decimal? @map("required_vehicle_capacity") @db.Decimal(10, 2)
+  priority                String?  @default("NORMAL")
+  buyerId                 String?  @map("buyer_id")
+  origin                  String
+  destination             String
+  status                  String   @default("AVAILABLE") // AVAILABLE, ASSIGNED, IN_TRANSIT, DELIVERED, CANCELLED
+  distanceKm              Decimal  @map("distance_km") @db.Decimal(10, 2)
+  etaHours                Decimal? @map("eta_hours") @db.Decimal(6, 2)
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @default(now()) @updatedAt @map("updated_at")
+
+  order              Order?                  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  logistics          LogisticsProfile?       @relation(fields: [logisticsId], references: [id], onDelete: SetNull)
+  vehicle            Vehicle?                @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  fpo                FpoProfile?             @relation(fields: [fpoId], references: [id], onDelete: SetNull)
+  trips              Trip[]
+  tracking           Tracking[]
+  routeOptimizations AIRouteOptimization[]
+
+  @@index([fpoId])
+  @@index([orderId])
+  @@index([logisticsId])
+  @@index([status])
+  @@map("shipments")
+}
+
+model Trip {
+  id                 String    @id @default(uuid())
+  tripCode           String    @unique @map("trip_code") // e.g. TR001, TR-2026-001
+  logisticsPartnerId String    @map("logistics_partner_id")
+  vehicleId          String?   @map("vehicle_id")
+  shipmentId         String?   @map("shipment_id")
+  orderId            String?   @map("order_id")
+  driverName         String?   @map("driver_name")
+  driverPhone        String?   @map("driver_phone")
+  cropName           String?   @map("crop_name")
+  quantity           String?   @map("quantity") // e.g. "8 Ton"
+  quantityKg         Decimal?  @map("quantity_kg") @db.Decimal(12, 2)
+  fpoName            String?   @map("fpo_name")
+  buyerName          String?   @map("buyer_name")
+  fromLocation       String    @map("from_location")
+  toLocation         String    @map("to_location")
+  status             String    @default("PICKUP_PENDING") // PICKUP_PENDING, PICKUP_COMPLETED, IN_TRANSIT, OUT_FOR_DELIVERY, DELIVERED, CANCELLED
+  currentStage       String?   @default("PICKUP_PENDING") @map("current_stage")
+  pickupTime         DateTime? @map("pickup_time")
+  deliveredTime      DateTime? @map("delivered_time")
+  eta                String?
+  distanceKm         Decimal?  @map("distance_km") @db.Decimal(10, 2)
+  earningsAmount     Decimal?  @map("earnings_amount") @db.Decimal(12, 2)
+  proofUrl           String?   @map("proof_url")
+  notes              String?
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  logisticsPartner LogisticsProfile   @relation(fields: [logisticsPartnerId], references: [id], onDelete: Cascade)
+  vehicle          Vehicle?            @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  shipment         Shipment?           @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+  stops            TripStop[]
+  locationUpdates  LocationUpdate[]
+  fuelExpenses     FuelExpense[]
+  earnings         LogisticsEarning[]
+  rating           LogisticsRating?
+
+  @@index([logisticsPartnerId])
+  @@index([vehicleId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("trips")
+}
+
+model TripStop {
+  id            String    @id @default(uuid())
+  tripId        String    @map("trip_id")
+  sequence      Int
+  stopName      String    @map("stop_name")
+  location      String
+  stopType      String    @default("PICKUP") @map("stop_type") // PICKUP, DELIVERY, WAYPOINT
+  crop          String?
+  quantityKg    Decimal?  @map("quantity_kg") @db.Decimal(12, 2)
+  scheduledTime DateTime? @map("scheduled_time")
+  completedTime DateTime? @map("completed_time")
+  status        String    @default("PENDING") // PENDING, COMPLETED, SKIPPED
+  latitude      Decimal?  @db.Decimal(10, 6)
+  longitude     Decimal?  @db.Decimal(10, 6)
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@map("trip_stops")
+}
+
+model LocationUpdate {
+  id         String   @id @default(uuid())
+  tripId     String?  @map("trip_id")
+  vehicleId  String?  @map("vehicle_id")
+  latitude   Decimal  @db.Decimal(10, 6)
+  longitude  Decimal  @db.Decimal(10, 6)
+  speed      Decimal? @db.Decimal(6, 2) // km/h
+  heading    Decimal? @db.Decimal(6, 2)
+  batteryPct Int?     @map("battery_pct")
+  recordedAt DateTime @default(now()) @map("recorded_at")
+
+  trip    Trip?    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@index([vehicleId])
+  @@index([recordedAt])
+  @@map("location_updates")
+}
+
+model FuelExpense {
+  id                 String   @id @default(uuid())
+  logisticsPartnerId String   @map("logistics_partner_id")
+  vehicleId          String   @map("vehicle_id")
+  tripId             String?  @map("trip_id")
+  expenseType        String   @default("FUEL") @map("expense_type") // FUEL, TOLL, PARKING, REPAIR, MAINTENANCE, OTHER
+  amount             Decimal  @db.Decimal(12, 2)
+  quantity           Decimal? @db.Decimal(10, 2) // e.g. liters
+  unitPrice          Decimal? @map("unit_price") @db.Decimal(10, 2)
+  odometer           Int?
+  station            String?
+  date               DateTime @default(now())
+  receiptUrl         String?  @map("receipt_url")
+  notes              String?
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  logisticsPartner LogisticsProfile @relation(fields: [logisticsPartnerId], references: [id], onDelete: Cascade)
+  vehicle          Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  trip             Trip?            @relation(fields: [tripId], references: [id], onDelete: SetNull)
+
+  @@index([logisticsPartnerId])
+  @@index([vehicleId])
+  @@index([tripId])
+  @@index([date])
+  @@map("fuel_expenses")
+}
+
+model MaintenanceRecord {
+  id                 String    @id @default(uuid())
+  logisticsPartnerId String    @map("logistics_partner_id")
+  vehicleId          String    @map("vehicle_id")
+  maintenanceType    String    @map("maintenance_type") // SERVICE, BRAKE_CHECK, TYRE_CHANGE, OIL_CHANGE, INSPECTION, OTHER
+  description        String
+  cost               Decimal   @default(0) @db.Decimal(12, 2)
+  serviceDate        DateTime  @default(now()) @map("service_date")
+  nextServiceDate    DateTime? @map("next_service_date")
+  odometer           Int?
+  status             String    @default("SCHEDULED") // SCHEDULED, DUE, COMPLETED, OVERDUE
+  severity           String?   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  serviceProvider    String?   @map("service_provider")
+  notes              String?
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  logisticsPartner LogisticsProfile @relation(fields: [logisticsPartnerId], references: [id], onDelete: Cascade)
+  vehicle          Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([logisticsPartnerId])
+  @@index([vehicleId])
+  @@index([status])
+  @@map("maintenance_records")
+}
+
+model LogisticsEarning {
+  id                 String    @id @default(uuid())
+  logisticsPartnerId String    @map("logistics_partner_id")
+  tripId             String?   @map("trip_id")
+  grossAmount        Decimal   @map("gross_amount") @db.Decimal(12, 2)
+  fuelCost           Decimal?  @default(0) @map("fuel_cost") @db.Decimal(12, 2)
+  otherExpenses      Decimal?  @default(0) @map("other_expenses") @db.Decimal(12, 2)
+  netAmount          Decimal   @map("net_amount") @db.Decimal(12, 2)
+  paymentStatus      String    @default("PAID") @map("payment_status") // PENDING, PROCESSING, PAID, FAILED
+  paymentDate        DateTime? @map("payment_date")
+  transactionRef     String?   @map("transaction_ref")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  logisticsPartner LogisticsProfile @relation(fields: [logisticsPartnerId], references: [id], onDelete: Cascade)
+  trip             Trip?            @relation(fields: [tripId], references: [id], onDelete: SetNull)
+
+  @@index([logisticsPartnerId])
+  @@index([paymentStatus])
+  @@index([createdAt])
+  @@map("logistics_earnings")
+}
+
+model LogisticsRating {
+  id                 String   @id @default(uuid())
+  logisticsPartnerId String   @map("logistics_partner_id")
+  tripId             String?  @unique @map("trip_id")
+  reviewerId         String?  @map("reviewer_id")
+  reviewerName       String   @map("reviewer_name")
+  reviewerRole       String   @default("FPO") @map("reviewer_role") // FPO, BUYER, FARMER
+  rating             Int      @default(5)
+  comment            String?
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  logisticsPartner LogisticsProfile @relation(fields: [logisticsPartnerId], references: [id], onDelete: Cascade)
+  trip             Trip?            @relation(fields: [tripId], references: [id], onDelete: SetNull)
+
+  @@index([logisticsPartnerId])
+  @@map("logistics_ratings")
+}
+
+model Tracking {
+  id           String   @id
+  shipmentId   String   @map("shipment_id")
+  latitude     Decimal  @db.Decimal(10, 6)
+  longitude    Decimal  @db.Decimal(10, 6)
+  temperatureC Decimal? @map("temperature_c") @db.Decimal(5, 2)
+  recordedAt   DateTime @default(now()) @map("recorded_at")
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@map("tracking")
+}
+
+// -----------------------------------------------------------------------------
+// AI Models & Signals
+// -----------------------------------------------------------------------------
+
+model AIForecast {
+  id                String   @id
+  cropId            String   @map("crop_id")
+  market            String
+  forecastDate      DateTime @map("forecast_date")
+  predictedDemandKg Decimal  @map("predicted_demand_kg") @db.Decimal(12, 2)
+  predictedSupplyKg Decimal  @map("predicted_supply_kg") @db.Decimal(12, 2)
+  confidence        Decimal  @db.Decimal(4, 2)
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  crop Crop @relation(fields: [cropId], references: [id], onDelete: Cascade)
+
+  @@map("ai_forecasts")
+}
+
+model AISupplyGap {
+  id                String   @id
+  cropId            String   @map("crop_id")
+  region            String
+  forecastDemandKg  Decimal  @map("forecast_demand_kg") @db.Decimal(12, 2)
+  forecastSupplyKg  Decimal  @map("forecast_supply_kg") @db.Decimal(12, 2)
+  gapKg             Decimal  @map("gap_kg") @db.Decimal(12, 2)
+  severity          String
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  crop Crop @relation(fields: [cropId], references: [id], onDelete: Cascade)
+
+  @@map("ai_supply_gaps")
+}
+
+model AIRecommendation {
+  id             String   @id
+  farmerId       String   @map("farmer_id")
+  cropId         String   @map("crop_id")
+  type           String
+  recommendation String   @db.Text
+  confidence     Decimal  @db.Decimal(4, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  farmer FarmerProfile @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  crop   Crop          @relation(fields: [cropId], references: [id], onDelete: Cascade)
+
+  @@map("ai_recommendations")
+}
+
+model AIRouteOptimization {
+  id                 String   @id
+  shipmentId         String   @map("shipment_id")
+  distanceKm         Decimal  @map("distance_km") @db.Decimal(10, 2)
+  estimatedTimeHours Decimal  @map("estimated_time_hours") @db.Decimal(6, 2)
+  fuelCostEstimate   Decimal  @map("fuel_cost_estimate") @db.Decimal(10, 2)
+  riskScore          Decimal  @map("risk_score") @db.Decimal(4, 2)
+  recommended        Boolean  @default(true)
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@map("ai_route_optimizations")
+}
+
+model ControlTowerAlert {
+  id        String   @id
+  type      String
+  severity  String
+  region    String
+  message   String   @db.Text
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("control_tower_alerts")
+}
+
+// -----------------------------------------------------------------------------
+// FPO Enterprise & Operational Subsystem (Phase 2.4)
+// -----------------------------------------------------------------------------
+
+model CollectionCenter {
+  id                 String   @id @default(uuid())
+  fpoId              String   @map("fpo_id")
+  name               String
+  code               String
+  address            String
+  district           String
+  block              String?
+  village            String?
+  latitude           Decimal? @db.Decimal(10, 6)
+  longitude          Decimal? @db.Decimal(10, 6)
+  managerName        String?  @map("manager_name")
+  contactPhone       String?  @map("contact_phone")
+  capacityKg         Decimal  @default(0) @map("capacity_kg") @db.Decimal(12, 2)
+  storageCapacityKg  Decimal  @default(0) @map("storage_capacity_kg") @db.Decimal(12, 2)
+  status             String   @default("ACTIVE") // ACTIVE, INACTIVE, MAINTENANCE
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  fpo     FpoProfile @relation(fields: [fpoId], references: [id], onDelete: Cascade)
+  produce Produce[]
+
+  @@unique([fpoId, code])
+  @@index([fpoId])
+  @@index([status])
+  @@map("collection_centers")
+}
+
+enum FpoStaffRole {
+  FPO_OWNER
+  FPO_ADMIN
+  FPO_MANAGER
+  FPO_ACCOUNTANT
+  FPO_PROCUREMENT_MANAGER
+  FPO_LOGISTICS_MANAGER
+  FPO_FIELD_OFFICER
+  FPO_STAFF
+}
+
+enum FpoStaffStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+  DEACTIVATED
+}
+
+model FpoStaff {
+  id                 String         @id @default(uuid())
+  fpoId              String         @map("fpo_id")
+  userId             String?        @map("user_id")
+  fullName           String         @map("full_name")
+  email              String
+  phone              String
+  role               FpoStaffRole   @default(FPO_STAFF)
+  department         String?
+  employeeId         String?        @map("employee_id")
+  status             FpoStaffStatus @default(ACTIVE)
+  permissions        String[]       @default([])
+  assignedCenterIds  String[]       @default([]) @map("assigned_center_ids")
+  joinedDate         DateTime       @default(now()) @map("joined_date")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  fpo FpoProfile @relation(fields: [fpoId], references: [id], onDelete: Cascade)
+
+  @@unique([fpoId, email])
+  @@index([fpoId])
+  @@index([status])
+  @@map("fpo_staff")
+}
+
+model InventoryTransaction {
+  id               String   @id @default(uuid())
+  lotId            String   @map("lot_id")
+  fpoId            String   @map("fpo_id")
+  type             String   // INTAKE, RESERVATION, RELEASE, SALE, DISPATCH, ADJUSTMENT
+  quantityKg       Decimal  @map("quantity_kg") @db.Decimal(12, 2)
+  balanceAfterKg   Decimal  @map("balance_after_kg") @db.Decimal(12, 2)
+  referenceType    String?  @map("reference_type") // ORDER, SHIPMENT, PRODUCE
+  referenceId      String?  @map("reference_id")
+  notes            String?
+  createdBy        String?  @map("created_by")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  fpo FpoProfile   @relation(fields: [fpoId], references: [id], onDelete: Cascade)
+  lot InventoryLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+
+  @@index([fpoId])
+  @@index([lotId])
+  @@index([createdAt])
+  @@map("inventory_transactions")
+}
+
+model Settlement {
+  id             String    @id @default(uuid())
+  fpoId          String    @map("fpo_id")
+  orderId        String?   @map("order_id")
+  farmerId       String?   @map("farmer_id")
+  type           String    // BUYER_PAYMENT, FARMER_PAYOUT, FPO_COMMISSION, PLATFORM_FEE
+  amount         Decimal   @db.Decimal(14, 2)
+  status         String    @default("PENDING") // PENDING, PROCESSING, PAID, FAILED
+  payoutDate     DateTime? @map("payout_date")
+  transactionRef String?   @map("transaction_ref")
+  notes          String?
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  fpo   FpoProfile @relation(fields: [fpoId], references: [id], onDelete: Cascade)
+  order Order?     @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([fpoId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("settlements")
+}
+
+model Notification {
+  id                 String   @id @default(uuid())
+  fpoId              String?  @map("fpo_id")
+  logisticsPartnerId String?  @map("logistics_partner_id")
+  userId             String?  @map("user_id")
+  type               String   // ORDER, PAYMENT, LOGISTICS, FARMER, INVENTORY, BUYER, AI, SYSTEM, TRIP, VEHICLE, MAINTENANCE
+  title              String
+  message            String   @db.Text
+  read               Boolean  @default(false)
+  link               String?
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  fpo              FpoProfile?       @relation(fields: [fpoId], references: [id], onDelete: Cascade)
+  logisticsPartner LogisticsProfile? @relation(fields: [logisticsPartnerId], references: [id], onDelete: Cascade)
+
+  @@index([fpoId])
+  @@index([logisticsPartnerId])
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model Message {
+  id                 String   @id @default(uuid())
+  fpoId              String?  @map("fpo_id")
+  logisticsPartnerId String?  @map("logistics_partner_id")
+  senderId           String   @map("sender_id")
+  senderName         String   @map("sender_name")
+  senderRole         String   @map("sender_role")
+  recipientId        String?  @map("recipient_id")
+  recipientName      String?  @map("recipient_name")
+  recipientRole      String?  @map("recipient_role")
+  subject            String
+  content            String   @db.Text
+  read               Boolean  @default(false)
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  fpo              FpoProfile?       @relation(fields: [fpoId], references: [id], onDelete: Cascade)
+  logisticsPartner LogisticsProfile? @relation(fields: [logisticsPartnerId], references: [id], onDelete: Cascade)
+
+  @@index([fpoId])
+  @@index([logisticsPartnerId])
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  fpoId     String   @map("fpo_id")
+  actorId   String   @map("actor_id")
+  actorName String   @map("actor_name")
+  actorRole String   @map("actor_role")
+  action    String
+  entity    String
+  entityId  String   @map("entity_id")
+  metadata  Json?
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  fpo FpoProfile @relation(fields: [fpoId], references: [id], onDelete: Cascade)
+
+  @@index([fpoId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+

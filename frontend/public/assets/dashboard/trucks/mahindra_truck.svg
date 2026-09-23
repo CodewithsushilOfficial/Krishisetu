@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 140" width="100%" height="100%">
+  <defs>
+    <linearGradient id="cabWhite" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="60%" stop-color="#f5f5f5"/>
+      <stop offset="100%" stop-color="#e0e0e0"/>
+    </linearGradient>
+    <linearGradient id="deckBlue" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#37474f"/>
+      <stop offset="100%" stop-color="#263238"/>
+    </linearGradient>
+    <linearGradient id="windshieldSmall" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#bbdefb"/>
+      <stop offset="100%" stop-color="#1976d2"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="120" cy="128" rx="90" ry="7" fill="#000" opacity="0.18"/>
+  <!-- Light Commercial Cargo Deck -->
+  <rect x="35" y="45" width="105" height="57" rx="3" fill="url(#deckBlue)" stroke="#455a64" stroke-width="1.5"/>
+  <line x1="60" y1="45" x2="60" y2="102" stroke="#546e7a" stroke-width="1"/>
+  <line x1="90" y1="45" x2="90" y2="102" stroke="#546e7a" stroke-width="1"/>
+  <line x1="120" y1="45" x2="120" y2="102" stroke="#546e7a" stroke-width="1"/>
+  <!-- Canopy Cover -->
+  <path d="M35,45 L45,35 L130,35 L140,45 Z" fill="#455a64"/>
+  <!-- White Bolero/Mahindra Cabin -->
+  <path d="M138,45 L170,45 Q178,45 182,52 L198,76 Q202,82 202,90 L202,102 L138,102 Z" fill="url(#cabWhite)" stroke="#bdbdbd" stroke-width="1"/>
+  <path d="M166,48 L176,48 Q180,48 183,54 L192,72 L166,72 Z" fill="url(#windshieldSmall)" opacity="0.85"/>
+  <rect x="144,50" width="16" height="22" rx="2" fill="url(#windshieldSmall)" opacity="0.85"/>
+  <rect x="196" y="86" width="6" height="8" rx="2" fill="#fff9c4"/>
+  <rect x="190" y="98" width="14" height="8" rx="2" fill="#212121"/>
+  <!-- CNG Cylinder / Fuel -->
+  <rect x="80" y="102" width="28" height="8" rx="3" fill="#2e7d32"/>
+  <!-- Wheels -->
+  <circle cx="65" cy="112" r="15" fill="#212121"/>
+  <circle cx="65" cy="112" r="8" fill="#cfd8dc"/>
+  <circle cx="170" cy="112" r="15" fill="#212121"/>
+  <circle cx="170" cy="112" r="8" fill="#cfd8dc"/>
+</svg>

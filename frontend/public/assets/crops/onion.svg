@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <defs>
+    <radialGradient id="onionGrad" cx="45%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#df6d88"/>
+      <stop offset="35%" stop-color="#b8385a"/>
+      <stop offset="75%" stop-color="#8a1a38"/>
+      <stop offset="100%" stop-color="#54081c"/>
+    </radialGradient>
+    <radialGradient id="onionHighlight" cx="35%" cy="30%" r="20%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="onionShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="#4a081a" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <!-- Transparent background for crisp table inline rendering -->
+  <g filter="url(#onionShadow)" transform="translate(0, 15)">
+    <!-- Root filaments -->
+    <path d="M 195 320 Q 190 345 180 355" stroke="#99705a" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M 200 320 Q 200 350 198 360" stroke="#99705a" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M 205 320 Q 215 345 225 352" stroke="#99705a" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <!-- Onion bulb body (teardrop bulb) -->
+    <path d="M 200 95 C 205 110, 315 170, 310 250 C 305 320, 240 330, 200 325 C 160 330, 95 320, 90 250 C 85 170, 195 110, 200 95 Z" fill="url(#onionGrad)"/>
+    <!-- Onion skin layers/lines -->
+    <path d="M 200 95 Q 260 190 255 315" stroke="#f09db3" stroke-width="2" fill="none" opacity="0.45"/>
+    <path d="M 200 95 Q 230 200 220 323" stroke="#f09db3" stroke-width="2" fill="none" opacity="0.45"/>
+    <path d="M 200 95 Q 140 190 145 315" stroke="#f09db3" stroke-width="2" fill="none" opacity="0.45"/>
+    <path d="M 200 95 Q 170 200 180 323" stroke="#f09db3" stroke-width="2" fill="none" opacity="0.45"/>
+    <!-- Specular highlight -->
+    <ellipse cx="165" cy="200" rx="40" ry="25" fill="url(#onionHighlight)" transform="rotate(-20 165 200)"/>
+    <!-- Dried top neck -->
+    <path d="M 196 98 L 194 65 Q 198 60 206 68 L 204 98 Z" fill="#b08050"/>
+  </g>
+</svg>
